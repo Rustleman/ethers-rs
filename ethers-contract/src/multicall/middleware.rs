@@ -382,6 +382,7 @@ impl<M: Middleware> Multicall<M> {
             self.calls.push(call);
             return Some(&self.calls.last().unwrap().function)
         }
+        None
     }
 
     /// Appends multiple `call`s to the list of calls of the Multicall instance.
