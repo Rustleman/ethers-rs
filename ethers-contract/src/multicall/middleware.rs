@@ -356,6 +356,34 @@ impl<M: Middleware> Multicall<M> {
         self
     }
 
+    pub fn add_call_ref<D: Detokenize>(
+        &mut self,
+        call: ContractCall<M, D>,
+        allow_failure: bool,
+    ) -> Option<&Function> {
+        let (to, data, value) = match call.tx {
+            TypedTransaction::Legacy(tx) => (tx.to, tx.data, tx.value),
+            TypedTransaction::Eip2930(tx) => (tx.tx.to, tx.tx.data, tx.tx.value),
+            TypedTransaction::Eip1559(tx) => (tx.to, tx.data, tx.value),
+            #[cfg(feature = "optimism")]
+            TypedTransaction::DepositTransaction(tx) => (tx.tx.to, tx.tx.data, tx.tx.value),
+        };
+        if data.is_none() && !call.function.outputs.is_empty() {
+            return None;
+        }
+        if let Some(NameOrAddress::Address(target)) = to {
+            let call = Call {
+                target,
+                data: data.unwrap_or_default(),
+                value: value.unwrap_or_default(),
+                allow_failure,
+                function: call.function,
+            };
+            self.calls.push(call);
+            return Some(&self.calls.last().unwrap().function)
+        }
+    }
+
     /// Appends multiple `call`s to the list of calls of the Multicall instance.
     ///
     /// See [`add_call`] for more details.
